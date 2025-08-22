@@ -36,6 +36,8 @@
     </repositories>
 
     <scm>
+        <connection>scm:git:git@github.com:globsframework/globs-etcd</connection>
+        <developerConnection>scm:git:git@github.com:globsframework/globs-etcd</developerConnection>
         <url>https://github.com/globsframework/globs-etcd</url>
     </scm>
 
