@@ -21,7 +21,6 @@ import org.globsframework.json.GSonUtils;
 import org.globsframework.serialisation.BinReader;
 import org.globsframework.serialisation.BinReaderFactory;
 import org.globsframework.serialisation.BinWriterFactory;
-import org.globsframework.serialisation.glob.GlobBinReader;
 import org.globsframework.shared.model.PathIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,8 +77,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             String encode = GSonUtils.encode(glob, true);
             return encode.getBytes(StandardCharsets.UTF_8);
         };
-        GlobDeserializer deserializer = resolvers -> data -> Optional.ofNullable(
-                GSonUtils.decode(new InputStreamReader(new ByteArrayInputStream(data), StandardCharsets.UTF_8), resolvers));
+        GlobDeserializer deserializer = (type, data) -> Optional.ofNullable(
+                GSonUtils.decode(new InputStreamReader(new ByteArrayInputStream(data), StandardCharsets.UTF_8),
+                        GlobTypeResolver.from(type)));
         return new EtcDSharedDataAccess(client, serializer, deserializer, prefix, separator);
     }
 
@@ -99,10 +99,9 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             binWriterFactory.create(outputStream).write(glob);
             return outputStream.toByteArray();
         };
-        GlobDeserializer deserializer = resolvers -> {
-            BinReader globBinReader = binReaderFactory.createGlobBinReader(resolvers);
-            return data -> globBinReader.read(new ByteArrayInputStream(data));
-        };
+        GlobDeserializer deserializer = (type, data) ->
+                binReaderFactory.createGlobBinReader(new ByteArrayInputStream(data))
+                        .read(type);
         return new EtcDSharedDataAccess(client, serializer, deserializer, prefix, separator);
     }
 
@@ -234,7 +233,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                 LOGGER.warn("Many value return " + kvs.size());
             }
             ByteSequence value = kvs.get(0).getValue();
-            return deserializer.with(GlobTypeResolver.from(type)).read(value.getBytes());
+            return deserializer.read(type, value.getBytes());
         });
     }
 
@@ -254,8 +253,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
             List<Glob> data = new ArrayList<>();
             for (KeyValue keyValue : kvs) {
                 ByteSequence value = keyValue.getValue();
-                deserializer.with(GlobTypeResolver.from(type)).read(value.getBytes())
-                        .ifPresent(data::add);
+                deserializer.read(type, value.getBytes()).ifPresent(data::add);
             }
             return new ResultAndRevision(data, revision);
         });
@@ -283,7 +281,6 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
 
     public ListenerCtrl listen(GlobType type, Listener listener, FieldValues orderedPath) {
         Listener logListener = new LoggerListener(listener);
-        GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         watchClient.watch(ByteSequence.from(extractPath(prefix, orderedPath, type, separator), StandardCharsets.UTF_8),
                 WatchOption.builder()
                         .withPrevKV(true)
@@ -292,10 +289,10 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                     try {
                         for (WatchEvent event : watchResponse.getEvents()) {
                             if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                                globBinReader.read(event.getPrevKV().getValue().getBytes())
+                                deserializer.read(type, event.getPrevKV().getValue().getBytes())
                                         .ifPresent(logListener::delete);
                             } else if (event.getEventType() == WatchEvent.EventType.PUT) {
-                                globBinReader.read(event.getKeyValue().getValue().getBytes())
+                                deserializer.read(type, event.getKeyValue().getValue().getBytes())
                                         .ifPresent(logListener::put);
                             } else {
                                 LOGGER.warn("event not unrecognized");
@@ -320,7 +317,6 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     public ListenerCtrl listenUnder(GlobType type, Listener listener, FieldValues orderedPath, long startAtRevision) {
         LOGGER.info("listenUnder " + orderedPath);
         Listener logListener = new LoggerListener(listener);
-        GlobDeserializer.Deserializer globBinReader = deserializer.with(GlobTypeResolver.from(type));
         WatchOption.Builder option = WatchOption.builder()
                 .withPrevKV(true)
                 .isPrefix(true);
@@ -332,10 +328,10 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
                     try {
                         for (WatchEvent event : watchResponse.getEvents()) {
                             if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                                globBinReader.read(event.getPrevKV().getValue().getBytes())
+                                deserializer.read(type, event.getPrevKV().getValue().getBytes())
                                         .ifPresent(logListener::delete);
                             } else if (event.getEventType() == WatchEvent.EventType.PUT) {
-                                globBinReader.read(event.getKeyValue().getValue().getBytes())
+                                deserializer.read(type, event.getKeyValue().getValue().getBytes())
                                         .ifPresent(logListener::put);
                             } else {
                                 LOGGER.warn("event not unrecognized");
@@ -390,11 +386,7 @@ public class EtcDSharedDataAccess implements SharedDataAccess {
     }
 
     interface GlobDeserializer {
-        Deserializer with(GlobTypeResolver resolvers);
-
-        interface Deserializer {
-            Optional<Glob> read(byte[] data);
-        }
+        Optional<Glob> read(GlobType type, byte[] data);
     }
 
     record ResultAndRevision(List<Glob> data, long revision) {
