@@ -6,14 +6,17 @@ import io.etcd.jetcd.Client;
 import io.etcd.jetcd.KV;
 import io.etcd.jetcd.options.DeleteOption;
 import org.globsframework.core.metamodel.GlobType;
-import org.globsframework.core.metamodel.GlobTypeLoaderFactory;
+import org.globsframework.core.metamodel.GlobTypeBuilder;
+import org.globsframework.core.metamodel.GlobTypeBuilderFactory;
 import org.globsframework.core.metamodel.fields.IntegerField;
 import org.globsframework.core.metamodel.fields.StringField;
 import org.globsframework.core.model.FieldValues;
 import org.globsframework.core.model.FieldValuesBuilder;
 import org.globsframework.core.model.Glob;
 import org.globsframework.core.model.MutableGlob;
+import org.globsframework.serialisation.model.FieldNumber;
 import org.globsframework.serialisation.model.FieldNumber_;
+import org.globsframework.shared.model.PathIndex;
 import org.globsframework.shared.model.PathIndex_;
 import org.junit.*;
 
@@ -494,7 +497,12 @@ public class EtcDSharedDataAccessTest {
         public static StringField someData;
 
         static {
-            GlobTypeLoaderFactory.create(Data1.class).load();
+            GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("Data1");
+            shop = typeBuilder.declareStringField("shop", FieldNumber.create(1), PathIndex.create(1));
+            workerName = typeBuilder.declareStringField("workerName", FieldNumber.create(2), PathIndex.create(2));
+            num = typeBuilder.declareIntegerField("num", FieldNumber.create(3), PathIndex.create(3));
+            someData = typeBuilder.declareStringField("someData", FieldNumber.create(4));
+            TYPE = typeBuilder.build();
         }
     }
 
@@ -516,7 +524,12 @@ public class EtcDSharedDataAccessTest {
         public static StringField someData;
 
         static {
-            GlobTypeLoaderFactory.create(Data2.class).load();
+            GlobTypeBuilder typeBuilder = GlobTypeBuilderFactory.create("Data2");
+            shop = typeBuilder.declareStringField("shop", FieldNumber.create(1), PathIndex.create(1));
+            workerName = typeBuilder.declareStringField("workerName", FieldNumber.create(2), PathIndex.create(2));
+            num = typeBuilder.declareIntegerField("num", FieldNumber.create(3), PathIndex.create(3));
+            someData = typeBuilder.declareStringField("someData", FieldNumber.create(4));
+            TYPE = typeBuilder.build();
         }
     }
 }
