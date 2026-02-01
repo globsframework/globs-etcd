@@ -7,7 +7,7 @@
     <packaging>jar</packaging>
     <artifactId>globs-etcd</artifactId>
     <name>Generic Lightweight ObjectS for etcD</name>
-    <version>5.0-SNAPSHOT</version>
+    <version>5.0.0</version>
 
     <developers>
         <developer>
@@ -38,7 +38,7 @@
         <connection>scm:git:git@github.com:globsframework/globs-etcd</connection>
         <developerConnection>scm:git:git@github.com:globsframework/globs-etcd</developerConnection>
         <url>https://github.com/globsframework/globs-etcd</url>
-      <tag>HEAD</tag>
+      <tag>5.0.0</tag>
   </scm>
 
     <profiles>
